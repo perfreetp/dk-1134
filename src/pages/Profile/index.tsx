@@ -11,31 +11,76 @@ import {
   HelpCircle,
   Award,
   TrendingUp,
+  Plus,
+  X,
 } from 'lucide-react';
 import Header from '../../components/layout/Header';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
 import { Card, CardBody } from '../../components/common/Card';
 import { useUserStore } from '../../store/userStore';
+import { Location } from '../../types';
+
+interface InvoiceSettings {
+  title: string;
+  taxNumber: string;
+  notes: string;
+}
 
 export default function ProfilePage() {
-  const { currentUser, locations } = useUserStore();
+  const { currentUser, locations, addLocation, removeLocation, setDefaultLocation } = useUserStore();
   const [activeSection, setActiveSection] = useState<
     'main' | 'routes' | 'invoice' | 'blacklist'
   >('main');
+  const [addRouteModal, setAddRouteModal] = useState(false);
+  const [newRouteName, setNewRouteName] = useState('');
+  const [newRouteAddress, setNewRouteAddress] = useState('');
+  const [invoiceSettings, setInvoiceSettings] = useState<InvoiceSettings>({
+    title: '',
+    taxNumber: '',
+    notes: '',
+  });
 
-  const menuItems: Array<{
-    icon: typeof MapPin;
-    label: string;
-    path?: 'routes' | 'invoice' | 'blacklist';
-    badge?: number;
-  }> = [
-    { icon: MapPin, label: '常用路线', path: 'routes', badge: locations.length },
-    { icon: FileText, label: '发票备注', path: 'invoice' },
-    { icon: Shield, label: '黑名单管理', path: 'blacklist', badge: 0 },
+  const menuItems = [
+    { icon: MapPin, label: '常用路线', path: 'routes' as const, badge: locations.length },
+    { icon: FileText, label: '发票备注', path: 'invoice' as const },
+    { icon: Shield, label: '黑名单管理', path: 'blacklist' as const, badge: 0 },
     { icon: Bell, label: '消息通知' },
     { icon: HelpCircle, label: '帮助与反馈' },
   ];
+
+  const handleAddRoute = () => {
+    if (!newRouteName.trim() || !newRouteAddress.trim()) {
+      alert('请填写完整的路线信息');
+      return;
+    }
+
+    const newLocation: Location = {
+      id: `loc-${Date.now()}`,
+      name: newRouteName.trim(),
+      address: newRouteAddress.trim(),
+      latitude: 40 + Math.random() * 0.1,
+      longitude: 116 + Math.random() * 0.1,
+      isDefault: locations.length === 0,
+    };
+
+    addLocation(newLocation);
+    setNewRouteName('');
+    setNewRouteAddress('');
+    setAddRouteModal(false);
+    alert('路线添加成功！');
+  };
+
+  const handleSaveInvoice = () => {
+    localStorage.setItem('shunlu_invoice', JSON.stringify(invoiceSettings));
+    alert('发票设置已保存！');
+  };
+
+  const handleDeleteRoute = (locId: string) => {
+    if (window.confirm('确定要删除这个路线吗？')) {
+      removeLocation(locId);
+    }
+  };
 
   if (activeSection === 'routes') {
     return (
@@ -62,17 +107,86 @@ export default function ProfilePage() {
                       <p className="text-sm text-gray-500">{location.address}</p>
                     </div>
                   </div>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    {!location.isDefault && (
+                      <button
+                        onClick={() => setDefaultLocation(location.id)}
+                        className="text-xs text-indigo-600 hover:text-indigo-700"
+                      >
+                        设为默认
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteRoute(location.id)}
+                      className="p-2 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
                 </div>
               </CardBody>
             </Card>
           ))}
-          <button className="w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-gray-500 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
-            + 添加新路线
+          <button
+            onClick={() => setAddRouteModal(true)}
+            className="w-full py-3 border-2 border-dashed border-indigo-300 rounded-xl text-indigo-600 hover:bg-indigo-50 transition-colors flex items-center justify-center space-x-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="font-medium">添加新路线</span>
           </button>
         </div>
+
+        {addRouteModal && (
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setAddRouteModal(false)}
+            ></div>
+            <div className="relative bg-white rounded-t-3xl sm:rounded-2xl w-full max-w-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">添加新路线</h3>
+                <button
+                  onClick={() => setAddRouteModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    地点名称
+                  </label>
+                  <input
+                    type="text"
+                    value={newRouteName}
+                    onChange={(e) => setNewRouteName(e.target.value)}
+                    placeholder="例如：公司、家、健身房"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    详细地址
+                  </label>
+                  <input
+                    type="text"
+                    value={newRouteAddress}
+                    onChange={(e) => setNewRouteAddress(e.target.value)}
+                    placeholder="例如：北京市海淀区中关村大街1号"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+                <button
+                  onClick={handleAddRoute}
+                  className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  保存路线
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -89,6 +203,8 @@ export default function ProfilePage() {
               </label>
               <input
                 type="text"
+                value={invoiceSettings.title}
+                onChange={(e) => setInvoiceSettings({ ...invoiceSettings, title: e.target.value })}
                 placeholder="请输入发票抬头"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -101,6 +217,8 @@ export default function ProfilePage() {
               </label>
               <input
                 type="text"
+                value={invoiceSettings.taxNumber}
+                onChange={(e) => setInvoiceSettings({ ...invoiceSettings, taxNumber: e.target.value })}
                 placeholder="请输入税号（可选）"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -112,13 +230,18 @@ export default function ProfilePage() {
                 常用备注模板
               </label>
               <textarea
+                value={invoiceSettings.notes}
+                onChange={(e) => setInvoiceSettings({ ...invoiceSettings, notes: e.target.value })}
                 placeholder="添加常用的行程备注，方便快速填写"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                 rows={4}
               />
             </CardBody>
           </Card>
-          <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors">
+          <button
+            onClick={handleSaveInvoice}
+            className="w-full py-3 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 transition-colors"
+          >
             保存设置
           </button>
         </div>

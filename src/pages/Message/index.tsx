@@ -5,39 +5,40 @@ import Header from '../../components/layout/Header';
 import Avatar from '../../components/common/Avatar';
 import { useMessageStore } from '../../store/messageStore';
 import { useUserStore } from '../../store/userStore';
-import { Conversation } from '../../types';
+import { Conversation, Message } from '../../types';
 import { getRelativeTime } from '../../utils/format';
 
 export default function MessagePage() {
   const navigate = useNavigate();
-  const { conversations, fetchConversations } = useMessageStore();
+  const { conversations, messages, sendMessage, markAsRead, getMessages } = useMessageStore();
   const { currentUser } = useUserStore();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    if (selectedConversation) {
+      const msgs = getMessages(selectedConversation.id);
+      setChatMessages(msgs);
+      markAsRead(selectedConversation.id);
+    }
+  }, [selectedConversation, messages, getMessages, markAsRead]);
 
   const handleSendMessage = () => {
     if (!messageInput.trim() || !selectedConversation || !currentUser) return;
 
-    useMessageStore.getState().sendMessage(
-      selectedConversation.id,
-      messageInput.trim(),
-      currentUser.id
-    );
+    sendMessage(selectedConversation.id, messageInput.trim(), currentUser.id);
+    setChatMessages(getMessages(selectedConversation.id));
     setMessageInput('');
   };
 
   if (selectedConversation) {
-    const messages = useMessageStore.getState().getMessages(selectedConversation.id);
     const otherUser = selectedConversation.participantUsers?.find(
       (u) => u.id !== currentUser?.id
     );
 
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-gray-50 flex flex-col h-screen">
         <Header
           title={otherUser?.name || '聊天'}
           showBack
@@ -48,8 +49,11 @@ export default function MessagePage() {
           }
         />
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-20">
-          {messages.map((message) => {
+        <div
+          className="flex-1 overflow-y-auto p-4 space-y-4 pb-20"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+        >
+          {chatMessages.map((message) => {
             const isMe = message.senderId === currentUser?.id;
             return (
               <div
@@ -83,7 +87,10 @@ export default function MessagePage() {
           })}
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 pb-8">
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3"
+          style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="max-w-md mx-auto flex items-center space-x-3">
             <input
               type="text"
@@ -130,7 +137,10 @@ export default function MessagePage() {
             return (
               <button
                 key={conversation.id}
-                onClick={() => setSelectedConversation(conversation)}
+                onClick={() => {
+                  setSelectedConversation(conversation);
+                  markAsRead(conversation.id);
+                }}
                 className="w-full text-left"
               >
                 <div className="flex items-center space-x-3 p-3 bg-white hover:bg-gray-50 rounded-xl transition-colors">

@@ -6,13 +6,13 @@ import { Card, CardBody, CardHeader } from '../../components/common/Card';
 import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
-import { mockOrders } from '../../data/mockOrders';
+import { useOrderStore } from '../../store/orderStore';
 import { Order } from '../../types';
 import { formatDate, formatPrice } from '../../utils/format';
 
 export default function OrderPage() {
   const navigate = useNavigate();
-  const [orders] = useState<Order[]>(mockOrders);
+  const { orders, cancelOrder, confirmOrder } = useOrderStore();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'confirmed'>('all');
 
   const filteredOrders = orders.filter((order) => {
@@ -30,6 +30,23 @@ export default function OrderPage() {
       cancelled: { label: '已取消', variant: 'danger' as const, icon: XCircle },
     };
     return configs[status];
+  };
+
+  const handleCancelOrder = (order: Order) => {
+    if (window.confirm('确定要取消这个订单吗？')) {
+      cancelOrder(order.id);
+    }
+  };
+
+  const handleConfirmOrder = (order: Order) => {
+    confirmOrder(order.id);
+    alert('订单已确认！');
+  };
+
+  const handleContactDriver = (order: Order) => {
+    if (order.trip?.driver) {
+      navigate('/message');
+    }
   };
 
   return (
@@ -95,13 +112,18 @@ export default function OrderPage() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-sm text-gray-600">
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{formatDate(order.trip.departureTime)}</span>
+                      <div className="bg-gray-50 rounded-lg p-3 space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">出发时间</span>
+                          <span className="text-gray-900 font-medium">{formatDate(order.trip.departureTime)}</span>
                         </div>
-                        <div className="text-indigo-600 font-semibold">
-                          {formatPrice(order.totalPrice)}
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">座位数</span>
+                          <span className="text-gray-900 font-medium">{order.seats}座</span>
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-gray-500">费用</span>
+                          <span className="text-indigo-600 font-semibold">{formatPrice(order.totalPrice)}</span>
                         </div>
                       </div>
 
@@ -123,11 +145,12 @@ export default function OrderPage() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <button className="p-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors">
-                              <MessageCircle className="w-5 h-5 text-gray-600" />
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleContactDriver(order)}
+                            className="p-2 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                          >
+                            <MessageCircle className="w-5 h-5 text-indigo-600" />
+                          </button>
                         </div>
                       )}
                     </>
@@ -135,10 +158,19 @@ export default function OrderPage() {
 
                   {order.status === 'pending' && (
                     <div className="flex items-center space-x-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleCancelOrder(order)}
+                      >
                         取消订单
                       </Button>
-                      <Button size="sm" className="flex-1">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleConfirmOrder(order)}
+                      >
                         确认支付
                       </Button>
                     </div>
@@ -146,10 +178,19 @@ export default function OrderPage() {
 
                   {order.status === 'confirmed' && (
                     <div className="flex items-center space-x-2 pt-2">
-                      <Button variant="outline" size="sm" className="flex-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => navigate('/')}
+                      >
                         查看详情
                       </Button>
-                      <Button size="sm" className="flex-1">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleContactDriver(order)}
+                      >
                         联系司机
                       </Button>
                     </div>

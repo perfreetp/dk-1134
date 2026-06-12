@@ -8,8 +8,9 @@ interface TripState {
   appliedTrips: Trip[];
   fetchTrips: () => void;
   publishTrip: (trip: Omit<Trip, 'id' | 'createdAt'>) => void;
-  applyForTrip: (tripId: string) => void;
+  applyForTrip: (tripId: string, seats?: number) => void;
   cancelTrip: (tripId: string) => void;
+  updateTripSeats: (tripId: string, seatsToReduce: number) => void;
 }
 
 export const useTripStore = create<TripState>((set) => ({
@@ -17,46 +18,63 @@ export const useTripStore = create<TripState>((set) => ({
   publishedTrips: [],
   appliedTrips: [],
 
-  fetchTrips: () =>
+  fetchTrips: () => {
+    const allTrips = mockTrips;
     set({
-      trips: mockTrips,
-      publishedTrips: mockTrips.filter((t) => t.driverId === 'user-1'),
-      appliedTrips: mockTrips.filter((t) => t.id === 'trip-1'),
-    }),
+      trips: allTrips,
+      publishedTrips: allTrips.filter((t) => t.driverId === 'user-1'),
+      appliedTrips: [],
+    });
+  },
 
-  publishTrip: (trip) =>
+  publishTrip: (trip) => {
+    const newTrip: Trip = {
+      ...trip,
+      id: `trip-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    set((state) => ({
+      trips: [newTrip, ...state.trips],
+      publishedTrips: [newTrip, ...state.publishedTrips],
+    }));
+  },
+
+  applyForTrip: (tripId, seats = 1) => {
     set((state) => {
-      const newTrip: Trip = {
+      const tripIndex = state.trips.findIndex((t) => t.id === tripId);
+      if (tripIndex === -1) return state;
+      
+      const trip = state.trips[tripIndex];
+      if (trip.availableSeats < seats) return state;
+
+      const updatedTrips = [...state.trips];
+      updatedTrips[tripIndex] = {
         ...trip,
-        id: `trip-${Date.now()}`,
-        createdAt: new Date().toISOString(),
+        availableSeats: trip.availableSeats - seats,
       };
+
       return {
-        trips: [newTrip, ...state.trips],
-        publishedTrips: [newTrip, ...state.publishedTrips],
+        trips: updatedTrips,
+        appliedTrips: [...state.appliedTrips, { ...trip, availableSeats: trip.availableSeats - seats }],
       };
-    }),
+    });
+  },
 
-  applyForTrip: (tripId) =>
-    set((state) => {
-      const trip = state.trips.find((t) => t.id === tripId);
-      if (trip && trip.availableSeats > 0) {
-        return {
-          trips: state.trips.map((t) =>
-            t.id === tripId ? { ...t, availableSeats: t.availableSeats - 1 } : t
-          ),
-          appliedTrips: [...state.appliedTrips, trip],
-        };
-      }
-      return state;
-    }),
-
-  cancelTrip: (tripId) =>
+  cancelTrip: (tripId) => {
     set((state) => ({
       trips: state.trips.map((t) =>
         t.id === tripId ? { ...t, status: 'cancelled' as const } : t
       ),
       publishedTrips: state.publishedTrips.filter((t) => t.id !== tripId),
       appliedTrips: state.appliedTrips.filter((t) => t.id !== tripId),
-    })),
+    }));
+  },
+
+  updateTripSeats: (tripId, seatsToReduce) => {
+    set((state) => ({
+      trips: state.trips.map((t) =>
+        t.id === tripId ? { ...t, availableSeats: Math.max(0, t.availableSeats - seatsToReduce) } : t
+      ),
+    }));
+  },
 }));

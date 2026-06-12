@@ -1,20 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, Clock, Star, MapPin } from 'lucide-react';
 import Header from '../../components/layout/Header';
 import TripCard from '../../components/TripCard';
 import { useTripStore } from '../../store/tripStore';
 import { useUserStore } from '../../store/userStore';
+import { useOrderStore } from '../../store/orderStore';
 import { Trip, SortOption } from '../../types';
 
 export default function HomePage() {
-  const { trips, fetchTrips } = useTripStore();
-  const { locations } = useUserStore();
+  const navigate = useNavigate();
+  const { trips, applyForTrip } = useTripStore();
+  const { locations, currentUser } = useUserStore();
+  const { createOrder } = useOrderStore();
   const [selectedSort, setSelectedSort] = useState<SortOption>('time');
   const [filterModal, setFilterModal] = useState(false);
-
-  useEffect(() => {
-    fetchTrips();
-  }, [fetchTrips]);
 
   const sortedTrips = [...trips].sort((a, b) => {
     switch (selectedSort) {
@@ -33,8 +33,27 @@ export default function HomePage() {
   const defaultDestination = locations.find((l) => !l.isDefault) || locations[1];
 
   const handleApply = (trip: Trip) => {
-    console.log('Applying for trip:', trip.id);
-    alert(`已提交拼车申请给 ${trip.driver?.name}`);
+    if (!currentUser) {
+      alert('请先登录');
+      return;
+    }
+
+    if (trip.availableSeats <= 0) {
+      alert('该行程已没有空余座位');
+      return;
+    }
+
+    const seats = 1;
+    const order = createOrder(trip, seats, currentUser.id);
+    applyForTrip(trip.id, seats);
+
+    const confirmed = window.confirm(
+      `拼车申请已提交！\n\n订单信息：\n- 行程：${trip.origin.name} → ${trip.destination.name}\n- 座位数：${seats}座\n- 费用：¥${order.totalPrice}\n\n是否前往订单页查看？`
+    );
+
+    if (confirmed) {
+      navigate('/order');
+    }
   };
 
   return (
@@ -56,7 +75,7 @@ export default function HomePage() {
               <div className="w-3 h-3 rounded-full bg-green-400"></div>
               <div className="flex-1">
                 <div className="text-xs text-indigo-200">出发地</div>
-                <div className="text-sm font-medium">{defaultOrigin?.name}</div>
+                <div className="text-sm font-medium">{defaultOrigin?.name || '请选择'}</div>
               </div>
             </div>
             <div className="border-l-2 border-dashed border-indigo-300 ml-1.5 h-4"></div>
@@ -64,7 +83,7 @@ export default function HomePage() {
               <div className="w-3 h-3 rounded-full bg-red-400"></div>
               <div className="flex-1">
                 <div className="text-xs text-indigo-200">目的地</div>
-                <div className="text-sm font-medium">{defaultDestination?.name}</div>
+                <div className="text-sm font-medium">{defaultDestination?.name || '请选择'}</div>
               </div>
             </div>
           </div>
