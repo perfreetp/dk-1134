@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Settings,
   MapPin,
@@ -41,6 +41,17 @@ export default function ProfilePage() {
     notes: '',
   });
 
+  useEffect(() => {
+    const saved = localStorage.getItem('shunlu_invoice');
+    if (saved) {
+      try {
+        setInvoiceSettings(JSON.parse(saved));
+      } catch {
+        console.error('Failed to parse invoice settings');
+      }
+    }
+  }, []);
+
   const menuItems = [
     { icon: MapPin, label: '常用路线', path: 'routes' as const, badge: locations.length },
     { icon: FileText, label: '发票备注', path: 'invoice' as const },
@@ -82,10 +93,14 @@ export default function ProfilePage() {
     }
   };
 
+  const handleBack = () => {
+    setActiveSection('main');
+  };
+
   if (activeSection === 'routes') {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <Header title="常用路线" showBack />
+        <Header title="常用路线" showBack onBack={handleBack} />
         <div className="max-w-md mx-auto px-4 py-4 space-y-3">
           {locations.map((location) => (
             <Card key={location.id}>
@@ -194,7 +209,7 @@ export default function ProfilePage() {
   if (activeSection === 'invoice') {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <Header title="发票备注" showBack />
+        <Header title="发票备注" showBack onBack={handleBack} />
         <div className="max-w-md mx-auto px-4 py-4 space-y-4">
           <Card>
             <CardBody>
@@ -252,7 +267,7 @@ export default function ProfilePage() {
   if (activeSection === 'blacklist') {
     return (
       <div className="min-h-screen bg-gray-50 pb-20">
-        <Header title="黑名单管理" showBack />
+        <Header title="黑名单管理" showBack onBack={handleBack} />
         <div className="max-w-md mx-auto px-4 py-4">
           <div className="text-center py-12">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">

@@ -12,7 +12,7 @@ interface OrderState {
 }
 
 export const useOrderStore = create<OrderState>((set, get) => ({
-  orders: [],
+  orders: mockOrders,
 
   fetchOrders: () => {
     set({ orders: mockOrders });

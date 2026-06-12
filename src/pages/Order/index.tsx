@@ -7,12 +7,16 @@ import Avatar from '../../components/common/Avatar';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import { useOrderStore } from '../../store/orderStore';
+import { useMessageStore } from '../../store/messageStore';
+import { useUserStore } from '../../store/userStore';
 import { Order } from '../../types';
 import { formatDate, formatPrice } from '../../utils/format';
 
 export default function OrderPage() {
   const navigate = useNavigate();
   const { orders, cancelOrder, confirmOrder } = useOrderStore();
+  const { conversations, setSelectedConversation, createConversation } = useMessageStore();
+  const { currentUser } = useUserStore();
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'confirmed'>('all');
 
   const filteredOrders = orders.filter((order) => {
@@ -44,9 +48,22 @@ export default function OrderPage() {
   };
 
   const handleContactDriver = (order: Order) => {
-    if (order.trip?.driver) {
-      navigate('/message');
+    if (!order.trip?.driver || !currentUser) return;
+
+    const existingConversation = conversations.find(
+      (conv) =>
+        conv.participants.includes(order.trip.driver.id) &&
+        conv.participants.includes(currentUser.id)
+    );
+
+    if (existingConversation) {
+      setSelectedConversation(existingConversation.id);
+    } else {
+      const newConversation = createConversation([currentUser, order.trip.driver], order.tripId);
+      setSelectedConversation(newConversation.id);
     }
+
+    navigate('/message');
   };
 
   return (

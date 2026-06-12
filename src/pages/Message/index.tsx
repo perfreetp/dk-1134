@@ -10,11 +10,23 @@ import { getRelativeTime } from '../../utils/format';
 
 export default function MessagePage() {
   const navigate = useNavigate();
-  const { conversations, messages, sendMessage, markAsRead, getMessages } = useMessageStore();
+  const { conversations, messages, sendMessage, markAsRead, getMessages, setSelectedConversation, selectedConversationId } = useMessageStore();
   const { currentUser } = useUserStore();
-  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [selectedConversation, setSelectedConversationLocal] = useState<Conversation | null>(null);
   const [messageInput, setMessageInput] = useState('');
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    if (selectedConversationId) {
+      const conv = conversations.find((c) => c.id === selectedConversationId);
+      if (conv) {
+        setSelectedConversationLocal(conv);
+        const msgs = getMessages(conv.id);
+        setChatMessages(msgs);
+        markAsRead(conv.id);
+      }
+    }
+  }, [selectedConversationId, conversations, getMessages, markAsRead]);
 
   useEffect(() => {
     if (selectedConversation) {
@@ -32,6 +44,17 @@ export default function MessagePage() {
     setMessageInput('');
   };
 
+  const handleBack = () => {
+    setSelectedConversationLocal(null);
+    setSelectedConversation(null);
+    setChatMessages([]);
+  };
+
+  const handleSelectConversation = (conversation: Conversation) => {
+    setSelectedConversationLocal(conversation);
+    setSelectedConversation(conversation.id);
+  };
+
   if (selectedConversation) {
     const otherUser = selectedConversation.participantUsers?.find(
       (u) => u.id !== currentUser?.id
@@ -42,6 +65,7 @@ export default function MessagePage() {
         <Header
           title={otherUser?.name || '聊天'}
           showBack
+          onBack={handleBack}
           rightAction={
             <div className="flex items-center space-x-2">
               <Avatar src={otherUser?.avatar} name={otherUser?.name || ''} size="sm" />
@@ -137,10 +161,7 @@ export default function MessagePage() {
             return (
               <button
                 key={conversation.id}
-                onClick={() => {
-                  setSelectedConversation(conversation);
-                  markAsRead(conversation.id);
-                }}
+                onClick={() => handleSelectConversation(conversation)}
                 className="w-full text-left"
               >
                 <div className="flex items-center space-x-3 p-3 bg-white hover:bg-gray-50 rounded-xl transition-colors">

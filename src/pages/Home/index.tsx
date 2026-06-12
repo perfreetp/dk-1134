@@ -6,6 +6,7 @@ import TripCard from '../../components/TripCard';
 import { useTripStore } from '../../store/tripStore';
 import { useUserStore } from '../../store/userStore';
 import { useOrderStore } from '../../store/orderStore';
+import { useMessageStore } from '../../store/messageStore';
 import { Trip, SortOption } from '../../types';
 
 export default function HomePage() {
@@ -13,6 +14,7 @@ export default function HomePage() {
   const { trips, applyForTrip } = useTripStore();
   const { locations, currentUser } = useUserStore();
   const { createOrder } = useOrderStore();
+  const { conversations, createConversation } = useMessageStore();
   const [selectedSort, setSelectedSort] = useState<SortOption>('time');
   const [filterModal, setFilterModal] = useState(false);
 
@@ -46,6 +48,18 @@ export default function HomePage() {
     const seats = 1;
     const order = createOrder(trip, seats, currentUser.id);
     applyForTrip(trip.id, seats);
+
+    if (trip.driver) {
+      const existingConversation = conversations.find(
+        (conv) =>
+          conv.participants.includes(trip.driver.id) &&
+          conv.participants.includes(currentUser.id)
+      );
+
+      if (!existingConversation) {
+        createConversation([currentUser, trip.driver], trip.id);
+      }
+    }
 
     const confirmed = window.confirm(
       `拼车申请已提交！\n\n订单信息：\n- 行程：${trip.origin.name} → ${trip.destination.name}\n- 座位数：${seats}座\n- 费用：¥${order.totalPrice}\n\n是否前往订单页查看？`
